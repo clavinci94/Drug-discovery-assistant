@@ -1,0 +1,4 @@
+[console_scripts]
+dda-optimize = src.cli:optimize
+dda-phase1 = src.cli:phase1
+dda-ui = src.cli:ui

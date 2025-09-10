@@ -1,0 +1,30 @@
+import requests, pandas as pd
+from typing import Dict
+
+class ChEMBLCollector:
+    def __init__(self):
+        self.base_url = "https://www.ebi.ac.uk/chembl/api/data"
+        self.session = requests.Session()
+        self.session.headers.update({'User-Agent':'DrugDiscoveryAssistant/1.0 (Educational)'})
+
+    def get_target_info(self, target_id: str) -> Dict:
+        r = self.session.get(f"{self.base_url}/target/{target_id}", timeout=20)
+        r.raise_for_status()
+        return r.json()
+
+    def get_bioactivities(self, target_id: str, limit: int = 100) -> pd.DataFrame:
+        params = {'target_chembl_id': target_id, 'limit': limit, 'format':'json'}
+        r = self.session.get(f"{self.base_url}/activity", params=params, timeout=30)
+        r.raise_for_status()
+        data = r.json().get('activities', [])
+        rows = []
+        for a in data:
+            rows.append({
+                'molecule_chembl_id': a.get('molecule_chembl_id'),
+                'canonical_smiles': a.get('canonical_smiles'),
+                'standard_type': a.get('standard_type'),
+                'standard_value': a.get('standard_value'),
+                'standard_units': a.get('standard_units'),
+                'target_chembl_id': a.get('target_chembl_id')
+            })
+        return pd.DataFrame(rows)

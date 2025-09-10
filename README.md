@@ -1,0 +1,69 @@
+# Drug Discovery Assistant – VEGFR2 (KDR)
+
+Ein **End-to-End KI-System** für **Drug Discovery** mit Fokus auf den Target-Drug-Interaction VEGFR2 (KDR).  
+Das Projekt kombiniert **moderne Machine-Learning-Methoden** (Graph/Protein-Embeddings, Cross-Attention, RF-Modelle) mit **praktischen Tools** (Gradio-UI, Generator, Explainability).
+
+---
+
+## 🚀 Features
+- **Datenquellen**: ChEMBL, PubChem (Bioaktivitäten, Molekül-Properties)  
+- **Molekül-Featurization**: RDKit Morgan-Fingerprints + Deskriptoren  
+- **Protein-Features**: UniProt + ESM-2 Embeddings  
+- **Modelle**  
+  - RandomForest (Molecule-only Baseline)  
+  - Cross-Attention TDI (Molekül↔Protein Binding Prediction)  
+- **Explainability**: Attention-basierte Residue-Importance + UniProt-Annotation  
+- **Generator**: BRICS-Mutationen + Multi-Objective Optimizer (Aktivität ↑, QED ↑, Lipinski ↓)  
+- **Evaluation**: K-Fold CV, ROC/PR, Optuna Hyperparameter-Search  
+- **UI**: Gradio-App (Vorhersage & Optimierung)
+
+---
+
+## 📂 Projektstruktur
+src/ # Core code (features, models, optimization, utils)
+scripts/ # Training, Evaluation, Optimizer, UI
+data/processed/ # Preprocessed Molecule + Protein Embeddings
+models/ # Trainierte Modelle (RF, TDI)
+reports/ # Ergebnisse, Plots, CSV/SDF
+notebooks/ # Exploration / Prototyping
+
+---
+
+## ⚙️ Installation
+```bash
+# Environment aufsetzen
+conda env create -f environment.yml
+conda activate drug_discovery
+```
+
+## ▶️ Usage
+1. Daten vorbereiten
+make phase1        # ChEMBL/PubChem → Molekül-Features + Protein-Embeddings
+2. Modelle trainieren
+make rf            # RandomForest Baseline (mit Optuna-Params)
+make cross-attn    # Cross-Attention TDI
+3. Evaluation
+make cv            # 5-Fold CV (RF)
+make hpo           # Optuna Hyperparameter-Search (RF)
+python scripts/eval_curves.py --metrics models/baseline_rf_metrics.json --out reports/rf_baseline
+4. Web-UI
+make ui            # Startet Gradio-App unter http://127.0.0.1:7860
+Tabs:
+Predict → SMILES eingeben → Aktivitätsschätzung (RF oder TDI)
+Optimize → Seed-Moleküle → BRICS-Mutationen → Multi-Objective Ranking
+5. Optimierung direkt via CLI
+./scripts/optimize_quick.sh "CC(=O)Oc1ccccc1C(=O)O" "Cn1cnc2n(C)c(=O)n(C)c(=O)c12"
+Ergebnisse: reports/opt_top.csv, reports/opt_tdi_top.csv, plus SDF für Visualisierung.
+
+## 📊 Ergebnisse (Beispiel)
+RF Optuna-HPO: ROC-AUC ~0.879
+Cross-Attention TDI: ROC-AUC ~0.87, PR-AUC ~0.93
+Explainability: VEGFR2-Kinase-Domäne stark gewichtet
+Optimizer: Neue Molekül-Kandidaten mit hoher Aktivität + guter Drug-likeness
+🔮 Erweiterungen
+Dockerfile für reproduzierbare Deployments
+Packaging (pyproject.toml)
+Erweiterung um Federated Learning oder Generative Models (RNN/VAE/Transformer) für Molekül-Design
+
+## Autor
+- Claudio Vinci

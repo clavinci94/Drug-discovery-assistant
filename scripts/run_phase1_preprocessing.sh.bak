@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TARGET_ID="${1:-CHEMBL279}"   # z.B. CHEMBL279=D2, CHEMBL2796? (prüfen), KDR/VEGFR2 ist häufig CHEMBL279? (du kannst hier dein Ziel setzen)
+LIMIT="${2:-500}"
+
+echo "➡️  Phase 1: Build dataset for target ${TARGET_ID} (limit=${LIMIT})"
+python -m src.data.processors.prepare_dataset --target "${TARGET_ID}" --limit "${LIMIT}"
+
+echo "➡️  Beispiel-Protein-Embedding (ESM-2, Dummy-Sequenz)"
+python - << 'PY'
+from features.protein.embeddings import embed_sequence
+seq = "MKTFFVLLLCTFVVSAEEA..."[:200].replace(".","")  # Platzhalter; echte Uniprot-Sequenz später
+emb = embed_sequence("MSEQUENCE")  # Dummy-Beispiel
+print("Protein-Embedding dim:", emb.shape)
+PY
+
+echo "✅ Phase 1 abgeschlossen."

@@ -1,0 +1,24 @@
+name: drug_discovery
+channels:
+  - conda-forge
+  - pytorch
+  - defaults
+dependencies:
+  - python=3.9
+  - rdkit
+  - pytorch
+  - pandas
+  - numpy
+  - scikit-learn
+  - matplotlib
+  - seaborn
+  - jupyter
+  - pip
+  - pip:
+    - requests
+    - pubchempy
+    - biopython
+    - transformers
+    - plotly
+    - tqdm
+    - python-dotenv

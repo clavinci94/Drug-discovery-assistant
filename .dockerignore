@@ -1,0 +1,11 @@
+.git
+.gitignore
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.swp
+data/*
+models/*
+reports/*
+notebooks/*
+.env

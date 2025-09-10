@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
+cd "$ROOT"
+export PYTHONPATH="."
+
+TID="CHEMBL279"             # VEGFR2/KDR
+UNIPROT_QUERY="accession:P35968"
+LIMIT="${1:-600}"
+
+echo "✅ Nutze festes Target: VEGFR2/KDR (${TID})"
+
+echo "➡️  Baue Molekül-Dataset (limit=${LIMIT})…"
+python -m src.data.processors.prepare_dataset --target "${TID}" --limit "${LIMIT}"
+
+echo "➡️  Erzeuge Protein-Embedding (UniProt VEGFR2: P35968)…"
+ACC_AND_PATH=$(
+python - << PY | tail -n 1
+from src.features.protein.embed_and_save import embed_uniprot_and_save
+acc, path = embed_uniprot_and_save("${UNIPROT_QUERY}")
+print(acc + "|" + path)
+PY
+)
+ACC="${ACC_AND_PATH%|*}"
+PEMB="${ACC_AND_PATH#*|}"
+echo "✅ UniProt: ${ACC} | Embedding: ${PEMB}"
+
+echo "➡️  Trainiere TDI-MLP…"
+python -m src.models.tdi_mlp --protein_emb "${PEMB}" --epochs 10 --lr 1e-3 --batch_size 256
+
+echo "🎉 Fertig. Artefakte: models/tdi_mlp.pt , models/tdi_mlp_metrics.json"

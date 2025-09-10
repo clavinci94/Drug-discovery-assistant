@@ -1,0 +1,392 @@
+import os, sys, json, glob, io, zipfile, time
+from datetime import datetime
+import numpy as np
+import pandas as pd
+import torch
+import gradio as gr
+import matplotlib.pyplot as plt
+from joblib import load
+
+# RDKit für Molekül-Previews
+from rdkit import Chem
+from rdkit.Chem import Draw
+
+# Projektwurzel für relative Imports
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
+
+from src.features.molecular.featurization import morgan_fp, basic_descriptors
+from src.models.tdi_cross_attn import CrossTDI
+from src.optimization.scorer import score_candidates
+from src.optimization.scorer_tdi import score_candidates_tdi
+from src.optimization.generator import brics_mutations
+from src.features.protein.uniprot_features import fetch_uniprot_features_json, flatten_features
+
+# Artefakte / Pfade
+RF_MODEL = "models/baseline_rf.joblib"
+TDI_MODEL = "models/tdi_cross_attn.pt"
+PROT_TOK = "data/processed/protein_embeddings/P35968_tokens.npy"
+IMP_NPY  = "models/tdi_cross_attn_protein_importance.npy"
+N_BITS   = 2048
+
+os.makedirs("reports", exist_ok=True)
+os.makedirs("reports/previews", exist_ok=True)
+
+# ----- UX helpers -----
+from rdkit.Chem import AllChem
+
+def smiles_is_valid(s):
+    m = Chem.MolFromSmiles(s)
+    return m is not None
+
+def smiles_canonical(s):
+    m = Chem.MolFromSmiles(s)
+    if m is None:
+        return None
+    try:
+        Chem.SanitizeMol(m)
+    except:
+        pass
+    return Chem.MolToSmiles(m)
+
+def confidence_label(p):
+    # heuristisch: high/medium/low
+    if p >= 0.8: return "high"
+    if p >= 0.6: return "medium"
+    return "low"
+
+def lipinski_explain(row):
+    # nutzt vorhandene Spalten falls vorhanden (qed, lipinski_violations)
+    notes=[]
+    if "qed" in row and row["qed"] is not None:
+        notes.append(f"QED={row['qed']:.2f}")
+    if "lipinski_violations" in row and row["lipinski_violations"] is not None:
+        v = int(row["lipinski_violations"])
+        if v==0: notes.append("Lipinski: OK")
+        else: notes.append(f"Lipinski: {v} violation(s)")
+    return "; ".join(notes)
+
+def make_run_dir():
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    d = f"reports/run_{ts}"
+    os.makedirs(d, exist_ok=True)
+    os.makedirs(os.path.join(d,"previews"), exist_ok=True)
+    return d
+
+
+# ----------------- Helpers -----------------
+def _timestamp():
+    return datetime.now().strftime("%Y%m%d_%H%M%S")
+
+def featurize_smiles(smiles_list):
+    fps, descs = [], []
+    for smi in smiles_list:
+        fps.append(morgan_fp(smi, n_bits=N_BITS))
+        descs.append(basic_descriptors(smi))
+    X_fp = np.vstack(fps).astype(np.float32)
+    desc_df = pd.DataFrame(descs).fillna(0).values.astype(np.float32)
+    X = np.hstack([X_fp, desc_df])
+    return X_fp, X
+
+def _smiles_gallery(smiles_list, prefix):
+    items = []
+    for i, smi in enumerate(smiles_list):
+        try:
+            mol = Chem.MolFromSmiles(smi)
+            if mol is None:
+                continue
+            path = f"reports/previews/{prefix}_{i}.png"
+            img = Draw.MolToImage(mol, size=(220, 180))
+            img.save(path)
+            items.append(path)
+        except Exception:
+            continue
+    return items
+
+def predict_rf(smiles_text: str, threshold: float=0.5):
+    if not os.path.exists(RF_MODEL):
+        return pd.DataFrame([{"error": "RF-Modell fehlt. Bitte ./scripts/train_models.sh ausführen."}]), "", []
+    raw = [s.strip() for s in smiles_text.splitlines() if s.strip()]
+    if not raw:
+        return pd.DataFrame([{"error": "Keine SMILES eingegeben."}]), "", []
+    valid, invalid = [], []
+    for r in raw:
+        c = smiles_canonical(r)
+        (valid if c else invalid).append((r,c))
+    smiles = [c for r,c in valid if c]
+    _, X = featurize_smiles(smiles) if smiles else (None, None)
+    rf = load(RF_MODEL)
+    proba = rf.predict_proba(X)[:,1] if smiles else np.array([])
+    pred = (proba >= threshold).astype(int) if smiles else np.array([])
+    df = pd.DataFrame({"smiles": smiles, "prob_active": proba, "pred": pred})
+    if len(df):
+        df["confidence"] = [confidence_label(p) for p in df["prob_active"]]
+    if invalid:
+        inv_rows=[{"smiles": r, "error":"Ungültige SMILES"} for r,c in invalid]
+        df = pd.concat([df, pd.DataFrame(inv_rows)], ignore_index=True)
+    gal = _smiles_gallery(smiles, f"rf_{_timestamp()}")
+    return df, f"RF Vorhersage fertig (threshold={threshold}).", gal
+
+def predict_tdi(smiles_text: str, threshold: float=0.5):
+    if not (os.path.exists(TDI_MODEL) and os.path.exists(PROT_TOK)):
+        return pd.DataFrame([{"error": "TDI-Artefakte fehlen. Bitte Cross-Attention trainieren."}]), "", []
+    raw = [s.strip() for s in smiles_text.splitlines() if s.strip()]
+    if not raw:
+        return pd.DataFrame([{"error": "Keine SMILES eingegeben."}]), "", []
+    valid, invalid = [], []
+    for r in raw:
+        c = smiles_canonical(r)
+        (valid if c else invalid).append((r,c))
+    smiles = [c for r,c in valid if c]
+    if not smiles:
+        return pd.DataFrame([{"error": "Keine gültigen SMILES."}]), "", []
+    df = score_candidates_tdi(smiles)
+    if "prob_active" in df:
+        df["pred"] = (df["prob_active"] >= threshold).astype(int)
+        df["confidence"] = [confidence_label(p) for p in df["prob_active"]]
+    if "qed" in df or "lipinski_violations" in df:
+        df["explain"] = df.apply(lipinski_explain, axis=1)
+    info = f"TDI-Inferenz fertig (threshold={threshold}). Für Residue-Importance → Tab 'Explainability'."
+    gal = _smiles_gallery(smiles, f"tdi_{_timestamp()}")
+    return df[["smiles","prob_active","pred","confidence","qed","lipinski_violations","score","explain"]], info, gal
+
+def optimize_rf(seeds_text: str, mutations: int, topn: int):
+    seeds = [s.strip() for s in seeds_text.splitlines() if s.strip()]
+    if not seeds:
+        return pd.DataFrame([{"error":"Bitte Seed-SMILES eingeben (eine pro Zeile)."}]), []
+    cand = []
+    for s in seeds:
+        cand += brics_mutations(s, n_variants=mutations)
+    cand = list(dict.fromkeys([c for c in cand if c]))
+    if not cand:
+        return pd.DataFrame([{"error":"Keine Kandidaten generiert (prüfe Seed-SMILES)."}]), []
+    df = score_candidates(cand).head(topn)
+    gal = _smiles_gallery(df["smiles"].tolist(), f"opt_rf_{_timestamp()}")
+    out = f"reports/opt_rf_{_timestamp()}.csv"
+    df.to_csv(out, index=False)
+    return df, gal
+
+def optimize_tdi(seeds_text: str, mutations: int, topn: int):
+    seeds = [s.strip() for s in seeds_text.splitlines() if s.strip()]
+    if not seeds:
+        return pd.DataFrame([{"error":"Bitte Seed-SMILES eingeben (eine pro Zeile)."}]), []
+    cand = []
+    for s in seeds:
+        cand += brics_mutations(s, n_variants=mutations)
+    cand = list(dict.fromkeys([c for c in cand if c]))
+    if not cand:
+        return pd.DataFrame([{"error":"Keine Kandidaten generiert."}]), []
+    df = score_candidates_tdi(cand).head(topn)
+    gal = _smiles_gallery(df["smiles"].tolist(), f"opt_tdi_{_timestamp()}")
+    out = f"reports/opt_tdi_{_timestamp()}.csv"
+    df.to_csv(out, index=False)
+    return df, gal
+
+# ---------- Explainability (Residue-Importance mit Kinase-Shading) ----------
+def _annotate_positions_with_uniprot(positions, uacc="P35968"):
+    uj = fetch_uniprot_features_json(uacc)
+    feats = flatten_features(uj)
+    fdf = pd.DataFrame(feats)
+    out=[]
+    for p in positions:
+        hits = fdf[(fdf["begin"]<=p) & (fdf["end"]>=p)]
+        if hits.empty:
+            out.append("")
+        else:
+            labels=[]
+            for _, row in hits.head(4).iterrows():
+                lab = row["type"]
+                if row.get("description"): lab += f"({row['description']})"
+                labels.append(lab)
+            out.append("; ".join(labels))
+    return out
+
+def render_protein_importance(topk=25, uacc="P35968", out_png="reports/vegfr2_importance_plot_ui.png"):
+    if not os.path.exists(IMP_NPY):
+        return None, pd.DataFrame([{"error":"Importance-Datei fehlt. Bitte TDI-Training mit Importance-Save ausführen."}])
+    imp = np.load(IMP_NPY).astype(float)
+    pos = np.arange(1, imp.shape[0]+1, dtype=int)
+    idx = np.argsort(imp)[-topk:][::-1]
+    top_pos = pos[idx]
+    top_imp = imp[idx]
+    uj = fetch_uniprot_features_json(uacc)
+    feats = flatten_features(uj)
+    fdf = pd.DataFrame(feats)
+    kinase = fdf[
+        fdf.apply(lambda r: ("kinase" in str(r.get("type","")).lower()) or ("kinase" in str(r.get("description","")).lower()), axis=1)
+    ][["begin","end","type","description"]].dropna()
+    kinase = kinase[(kinase["begin"]>0) & (kinase["end"]>=kinase["begin"])]
+
+    os.makedirs(os.path.dirname(out_png), exist_ok=True)
+    plt.figure(figsize=(12,3))
+    plt.plot(pos, imp, linewidth=1, label="importance")
+    plt.scatter(top_pos, top_imp, label=f"top{topk}")
+
+    shaded=False
+    for _, r in kinase.iterrows():
+        b, e = int(r["begin"]), int(r["end"])
+        plt.axvspan(b, e, alpha=0.2, label="kinase domain" if not shaded else None)
+        shaded=True
+
+    plt.title(f"Protein Residue Importance – {uacc}")
+    plt.xlabel("Residue position"); plt.ylabel("Importance")
+    if shaded:
+        plt.legend(loc="upper right", frameon=False)
+    plt.tight_layout(); plt.savefig(out_png, dpi=160); plt.close()
+
+    ann = _annotate_positions_with_uniprot(top_pos.tolist(), uacc=uacc)
+    df = pd.DataFrame({"position": top_pos, "importance": top_imp, "uniprot_features": ann})
+    return out_png, df
+
+# ---------- Reports / ZIP ----------
+def about_summary():
+    def _read_json_safe(path):
+        try:
+            with open(path) as f: return json.load(f)
+        except Exception: return None
+    rf_m = _read_json_safe("models/baseline_rf_metrics.json")
+    tdi_m= _read_json_safe("models/tdi_cross_attn_metrics.json")
+    lines=[]
+    if rf_m and "test" in rf_m:
+        t=rf_m["test"]
+        lines.append(f"**RF** — AUC: {t.get('roc_auc',0):.3f} · PR-AUC: {t.get('pr_auc',0):.3f} · ACC: {t.get('accuracy',0):.3f}")
+    if tdi_m and "roc_auc" in tdi_m:
+        lines.append(f"**Cross-Attention TDI** — AUC: {tdi_m.get('roc_auc',0):.3f} · PR-AUC: {tdi_m.get('pr_auc',0):.3f} · ACC: {tdi_m.get('accuracy',0):.3f}")
+    if not lines:
+        lines.append("_Noch keine Metriken gefunden. Trainiere Modelle, um Werte zu sehen._")
+    return "\n".join(lines)
+
+def list_report_files():
+    files = sorted(glob.glob("reports/*"))
+    files = [f for f in files if any(f.endswith(ext) for ext in (".csv",".sdf",".png",".txt",".json"))]
+    return files
+
+def build_reports_zip():
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for f in list_report_files():
+            z.write(f, arcname=os.path.basename(f))
+    buf.seek(0)
+    outp = f"reports/reports_{_timestamp()}.zip"
+    with open(outp, "wb") as fh:
+        fh.write(buf.read())
+    return outp
+
+# ----------------- UI -----------------
+with gr.Blocks(title="Drug Discovery Assistant – VEGFR2") as demo:
+    gr.Markdown("# Drug Discovery Assistant – VEGFR2 (KDR)")
+    gr.Markdown("**Flow:** Predict → Optimize → Batch Analysis → Explainability → Reports → About")
+
+    # Predict
+    with gr.Tab("Predict"):
+        with gr.Row():
+            with gr.Column(scale=2):
+                smiles_in = gr.Textbox(label="SMILES (eine pro Zeile)", lines=6, placeholder="CC(=O)Oc1ccccc1C(=O)O\nCn1cnc2n(C)c(=O)n(C)c(=O)c12")
+                with gr.Row():
+                    btn_ex = gr.Button("⚡ Beispiel (Aspirin + Caffeine)")
+                    btn_clear = gr.Button("Leeren")
+            with gr.Column(scale=1):
+                model_sel = gr.Radio(["Molecule-only RF", "Cross-Attention TDI"], value="Molecule-only RF", label="Modell")
+                thr = gr.Slider(0.1, 0.9, value=0.5, step=0.05, label="Klassifikations-Schwelle (Threshold)")
+                btn_pred = gr.Button("Vorhersagen", variant="primary")
+        out_df = gr.Dataframe(label="Ergebnisse (inkl. confidence & explain)", wrap=True)
+        out_txt = gr.Markdown()
+        gal = gr.Gallery(label="Molekül-Previews", show_label=True, columns=5, height=220)
+
+        def load_examples():
+            return "CC(=O)Oc1ccccc1C(=O)O\nCn1cnc2n(C)c(=O)n(C)c(=O)c12"
+        btn_ex.click(fn=load_examples, inputs=None, outputs=smiles_in)
+        btn_clear.click(fn=lambda: "", inputs=None, outputs=smiles_in)
+
+        def serve(smiles_text, model_kind):
+            if model_kind == "Molecule-only RF":
+                df, info, g = predict_rf(smiles_text)
+            else:
+                df, info, g = predict_tdi(smiles_text)
+            return df, info, g
+        btn_pred.click(fn=lambda s_txt, m_sel, t: (predict_rf(s_txt, t) if m_sel=="Molecule-only RF" else predict_tdi(s_txt, t)), inputs=[smiles_in, model_sel, thr], outputs=[out_df, out_txt, gal])
+
+    # Optimize
+    with gr.Tab("Optimize"):
+        gr.Markdown("**Seeds → BRICS-Mutationen → Multi-Objective Scoring (Aktivität + QED − Lipinski).**")
+        with gr.Row():
+            seeds = gr.Textbox(label="Seed-SMILES (eine pro Zeile)", lines=6, placeholder="CC(=O)Oc1ccccc1C(=O)O")
+            with gr.Column():
+                mut = gr.Slider(10, 100, value=40, step=5, label="Mutationen pro Seed (BRICS)")
+                topn = gr.Slider(10, 100, value=30, step=5, label="Top-N Ergebnisse")
+                with gr.Row():
+                    btn_rf = gr.Button("Optimize mit RF")
+                    btn_tdi = gr.Button("Optimize mit TDI")
+        out_opt = gr.Dataframe(label="Optimierungs-Ergebnisse", wrap=True)
+        gal_opt = gr.Gallery(label="Top-K Kandidaten", columns=5, height=220)
+        btn_rf.click(fn=optimize_rf, inputs=[seeds, mut, topn], outputs=[out_opt, gal_opt])
+        btn_tdi.click(fn=optimize_tdi, inputs=[seeds, mut, topn], outputs=[out_opt, gal_opt])
+
+    # Batch Analysis
+    with gr.Tab("Batch Analysis"):
+        gr.Markdown("CSV hochladen → Spalte **smiles** wird erkannt (case-insensitive).")
+        file_in = gr.File(label="CSV mit SMILES", file_types=[".csv"])
+        model_batch = gr.Radio(["Molecule-only RF", "Cross-Attention TDI"], value="Molecule-only RF", label="Modell")
+        btn_batch = gr.Button("Batch vorhersagen")
+        df_batch = gr.Dataframe(label="Batch-Ergebnisse")
+        file_out = gr.File(label="Download CSV")
+
+        def batch_predict(file, model_kind):
+            if file is None:
+                return pd.DataFrame([{"error":"Bitte eine CSV hochladen."}]), None
+            try:
+                df = pd.read_csv(file.name)
+            except Exception as e:
+                return pd.DataFrame([{"error": f"CSV konnte nicht gelesen werden: {e}"}]), None
+            col = None
+            for c in df.columns:
+                if c.lower().strip() == "smiles":
+                    col = c; break
+            if col is None:
+                return pd.DataFrame([{"error":"Keine Spalte 'smiles' gefunden."}]), None
+            smiles_text = "\n".join([str(s) for s in df[col].astype(str).tolist()])
+            if model_kind == "Molecule-only RF":
+                pred, _, _ = predict_rf(smiles_text)
+            else:
+                pred, _, _ = predict_tdi(smiles_text)
+            outp = f"reports/batch_{_timestamp()}.csv"
+            pred.to_csv(outp, index=False)
+            return pred, outp
+        btn_batch.click(fn=batch_predict, inputs=[file_in, model_batch], outputs=[df_batch, file_out])
+
+    # Explainability
+    with gr.Tab("Explainability"):
+        gr.Markdown("Residue-Importance (TDI) mit **UniProt**-Annotationen und **Kinase-Domänen** (schattiert).")
+        with gr.Row():
+            uacc = gr.Dropdown(label="Target (UniProt Accession)", choices=["P35968 (VEGFR2)","P00533 (EGFR)","P04626 (HER2)","O60674 (JAK2)","Q9Y243 (ALK)"], value="P35968 (VEGFR2)")
+            imp_k = gr.Slider(5, 50, value=25, step=1, label="Top-K Residues")
+            btn_imp = gr.Button("Residue-Importance anzeigen")
+        imp_img = gr.Image(label="Protein Importance", interactive=False)
+        imp_df  = gr.Dataframe(label="Top Residues (mit UniProt-Annotation)", wrap=True)
+        def serve_importance(k, acc_label):
+            acc = acc_label.split()[0]
+            path, df = render_protein_importance(topk=int(k), uacc=acc)
+            return path, df
+        btn_imp.click(fn=serve_importance, inputs=[imp_k, uacc], outputs=[imp_img, imp_df])
+
+    # Reports & Download
+    with gr.Tab("Reports & Download"):
+        gr.Markdown("Liste aller Reports (CSV/SDF/PNG/TXT/JSON) + **ZIP-Export**.")
+        btn_refresh = gr.Button("Aktualisieren")
+        files_out = gr.Files(label="Reports", value=list_report_files(), interactive=False)
+        btn_zip = gr.Button("📦 ZIP erzeugen")
+        zip_file = gr.File(label="Download ZIP")
+        btn_refresh.click(fn=list_report_files, inputs=None, outputs=files_out)
+        btn_zip.click(fn=build_reports_zip, inputs=None, outputs=zip_file)
+
+    # About
+    with gr.Tab("About"):
+        gr.Markdown("## About — Drug Discovery Assistant (VEGFR2/KDR)\n"
+                    "End-to-end Pipeline: Daten → Features → Modelle (RF & Cross-Attention) → Explainability → Optimizer.\n"
+                    "Diese App ist ein Forschungswerkzeug (kein Medical Device).")
+        md_metrics = gr.Markdown(about_summary())
+
+if __name__ == "__main__":
+    demo.launch(server_name=os.getenv("GRADIO_SERVER_NAME","0.0.0.0"),
+                server_port=int(os.getenv("GRADIO_SERVER_PORT","7860")))

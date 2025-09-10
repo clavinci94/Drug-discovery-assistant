@@ -1,0 +1,14 @@
+services:
+  app:
+    image: drug-discovery:cpu
+    build: .
+    ports:
+      - "${PORT:-7860}:7860"
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - ./:/app
+      - torch-cache:/root/.cache/torch
+    command: ["/bin/bash","-lc","micromamba run -n drug_discovery python scripts/app_gradio.py"]
+volumes:
+  torch-cache:

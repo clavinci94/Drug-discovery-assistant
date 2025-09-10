@@ -1,0 +1,19 @@
+[project]
+name = "drug-discovery-assistant"
+version = "0.1.0"
+requires-python = ">=3.10"
+description = "End-to-end Drug Discovery pipeline (VEGFR2/KDR)."
+readme = "README.md"
+authors = [{name="Claudio", email="example@example.com"}]
+dependencies = []
+
+[tool.setuptools]
+packages = ["src"]
+
+[tool.setuptools.package-data]
+"src" = ["**/*.py"]
+
+[project.scripts]
+dda-phase1 = "src.cli:phase1"
+dda-ui = "src.cli:ui"
+dda-optimize = "src.cli:optimize"
