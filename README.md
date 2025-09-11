@@ -85,7 +85,7 @@ Eine ausführliche Projektbeschreibung mit Methodik, Ergebnissen und Limitierung
 
 ## 👤 Autor
 Claudio Vinci  
-[LinkedIn]((https://www.linkedin.com/in/claudio-vinci/)) • [GitHub](https://github.com/clavinci94@gmail.com) • [Email](mailto:claudiovinci94)
+[LinkedIn](https://www.linkedin.com/in/claudio-vinci/) • [GitHub](https://github.com/clavinci94@gmail.com) • [Email](mailto:claudiovinci94)
 
 
 ## 📝 Lizenz
