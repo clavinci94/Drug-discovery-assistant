@@ -62,7 +62,7 @@ conda activate drug_discovery
 python test_setup.py  # Setup-Test
 export PYTHONPATH="."
 GRADIO_SERVER_PORT=7860 python scripts/app_gradio.py
-👉 Öffne im Browser: http://127.0.0.1:7860
+👉 Öffne im Browser: [http://127.0.0.1:7860](http://127.0.0.1:7862)
 
 ### 3. Mit Docker starten
 docker build -t drug-discovery:cpu .
