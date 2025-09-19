@@ -23,8 +23,6 @@ Die Applikation kombiniert moderne Methoden wie Molekül-Featurization, Protein 
 ## 📸 Screenshots
 
 ### Molekülvorhersage
-
-### Molekülvorhersage
 ![Molekülvorhersage – Aspirin & Caffeine](docs/screenshots/predict_aspirin_caffeine.png)
 
 ### Explainability Report
