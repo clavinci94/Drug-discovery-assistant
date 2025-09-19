@@ -1,29 +1,52 @@
-# Python
-__pycache__/
-*.pyc
-*.pyo
-
-# Environments
-.venv/
-.env
-*.env
-
-# Data
-data/*
-!data/.gitkeep
-
-# Reports
-reports/*
-!reports/.gitkeep
-
-# Notebooks checkpoints
-.ipynb_checkpoints/
-
-# OS files
-.DS_Store
-
-# IDE
-.idea/
-# lokale Backups
-scripts/app_gradio.py.before-fix
-scripts/app_gradio.py.save
+## --- OS / IDE ---
+ #.DS_Store
+ #.idea/
+ #.vscode/
+ #
+ ## --- Python / Builds / Caches ---
+ #__pycache__/
+ #*.py[cod]
+ #*.pyo
+ #*.so
+ #*.log
+ #*.sqlite3
+ #.venv/
+ #.env
+ #.python-version
+ #.mypy_cache/
+ #.pytest_cache/
+ #.ruff_cache/
+ #coverage/
+ #htmlcov/
+ #build/
+ #dist/
+ #*.egg-info/
+ #
+ ## --- Notebooks ---
+ #.ipynb_checkpoints/
+ #
+ ## --- App-Outputs / Generierte Artefakte ---
+ ## Reports sollen nicht versioniert werden (werden neu erzeugt)
+ #reports/**
+ #!reports/.gitkeep
+ #
+ ## --- Daten ---
+ ## Standardmäßig alles unter data/ ignorieren …
+ #data/**
+ ## … aber die Demos, die die App braucht, ausdrücklich behalten:
+ #!data/processed/
+ #!data/processed/protein_embeddings/
+ #!data/processed/protein_embeddings/P35968*.npy
+ #!data/.gitkeep
+ #
+ ## --- Modelle ---
+ ## Große/temporäre Modelle ignorieren …
+ #models/**
+ ## … aber die kleinen/benötigten Demo-Modelle behalten:
+ #!models/baseline_rf.joblib
+ #!models/tdi_cross_attn.pt
+ #!models/tdi_cross_attn_protein_importance.npy
+ #!models/*metrics.json
+ #
+ ## --- Dokumentation / Screenshots (bewusst versionieren) ---
+ #!docs/screenshots/**
