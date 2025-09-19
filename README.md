@@ -1,69 +1,94 @@
-# Drug Discovery Assistant – VEGFR2 (KDR)
+# # Drug Discovery Assistant
 
-Ein **End-to-End KI-System** für **Drug Discovery** mit Fokus auf den Target-Drug-Interaction VEGFR2 (KDR).  
-Das Projekt kombiniert **moderne Machine-Learning-Methoden** (Graph/Protein-Embeddings, Cross-Attention, RF-Modelle) mit **praktischen Tools** (Gradio-UI, Generator, Explainability).
+[![Build](https://img.shields.io/badge/build-passing-brightgreen)](#)
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue)](#)
+[![Docker](https://img.shields.io/badge/docker-ready-blue)](#)
+[![License](https://img.shields.io/badge/license-MIT-lightgrey)](#)
+
+Ein End-to-End KI-gestütztes System für **Drug Discovery**.  
+Die Applikation kombiniert moderne Methoden wie Molekül-Featurization, Protein Language Models (ESM-2), Cross-Attention** und Explainability, um:  
+- Molekül-Eigenschaften vorherzusagen  
+- Protein–Ligand-Interaktionen zu modellieren  
+- Neue Kandidaten-Moleküle zu generieren  
+- Ergebnisse verständlich zu visualisieren  
 
 ---
 
 ## 🚀 Features
-- **Datenquellen**: ChEMBL, PubChem (Bioaktivitäten, Molekül-Properties)  
-- **Molekül-Featurization**: RDKit Morgan-Fingerprints + Deskriptoren  
-- **Protein-Features**: UniProt + ESM-2 Embeddings  
-- **Modelle**  
-  - RandomForest (Molecule-only Baseline)  
-  - Cross-Attention TDI (Molekül↔Protein Binding Prediction)  
-- **Explainability**: Attention-basierte Residue-Importance + UniProt-Annotation  
-- **Generator**: BRICS-Mutationen + Multi-Objective Optimizer (Aktivität ↑, QED ↑, Lipinski ↓)  
-- **Evaluation**: K-Fold CV, ROC/PR, Optuna Hyperparameter-Search  
-- **UI**: Gradio-App (Vorhersage & Optimierung)
+- **Molecular Property Prediction**: Vorhersage von ADMET-relevanten Eigenschaften  
+- **Target–Drug Interaction (TDI)**: Cross-Attention Modell für Protein-Ligand-Bindung  
+- **Explainability**: Residue-Importance Reports, UniProt-Mapping  
+- **Optimization**: BRICS-basierte Molekül-Generierung + Multi-Objective Scoring  
+- **User Interface**: Gradio Web-App mit Prediction, Batch, Optimization und Export  
+- **Deployment-ready**: Dockerfile + CI/CD Pipeline  
+- **Reports**: CSV, SDF, PNG und ZIP für Dokumentation  
 
 ---
 
-## 📂 Projektstruktur
-src/ # Core code (features, models, optimization, utils)
-scripts/ # Training, Evaluation, Optimizer, UI
-data/processed/ # Preprocessed Molecule + Protein Embeddings
-models/ # Trainierte Modelle (RF, TDI)
-reports/ # Ergebnisse, Plots, CSV/SDF
-notebooks/ # Exploration / Prototyping
+## 📸 Screenshots
+
+### Molekülvorhersage
+
+### Molekülvorhersage
+![Molekülvorhersage – Aspirin & Caffeine](docs/screenshots/predict_aspirin_caffeine.png)
+
+### Explainability Report
+![Explainability – VEGFR2 (Residue Importance)](docs/screenshots/explainability_vegfr2_top25.png)
+
 
 ---
 
-## ⚙️ Installation
-```bash
-# Environment aufsetzen
-conda env create -f environment.yml
-conda activate drug_discovery
+## 📂 Repository Struktur
+```text
+├── data/                 # Rohdaten, verarbeitet & Embeddings
+├── src/                  # Quellcode (Features, Modelle, Utils)
+├── scripts/              # Trainings-, Optimierungs- und UI-Skripte
+├── reports/              # Generierte Reports (CSV, PNG, SDF, ZIP)
+├── docs/screenshots/     # Screenshots für README
+├── environment.yml       # Conda Environment
+├── Dockerfile            # Docker Setup
+├── README.md             # Hauptdokumentation
+└── PROJECT.md            # Projektbeschreibung (Paper-Style)
 ```
 
-## ▶️ Usage
-1. Daten vorbereiten
-make phase1        # ChEMBL/PubChem → Molekül-Features + Protein-Embeddings
-2. Modelle trainieren
-make rf            # RandomForest Baseline (mit Optuna-Params)
-make cross-attn    # Cross-Attention TDI
-3. Evaluation
-make cv            # 5-Fold CV (RF)
-make hpo           # Optuna Hyperparameter-Search (RF)
-python scripts/eval_curves.py --metrics models/baseline_rf_metrics.json --out reports/rf_baseline
-4. Web-UI
-make ui            # Startet Gradio-App unter http://127.0.0.1:7860
-Tabs:
-Predict → SMILES eingeben → Aktivitätsschätzung (RF oder TDI)
-Optimize → Seed-Moleküle → BRICS-Mutationen → Multi-Objective Ranking
-5. Optimierung direkt via CLI
-./scripts/optimize_quick.sh "CC(=O)Oc1ccccc1C(=O)O" "Cn1cnc2n(C)c(=O)n(C)c(=O)c12"
-Ergebnisse: reports/opt_top.csv, reports/opt_tdi_top.csv, plus SDF für Visualisierung.
 
-## 📊 Ergebnisse (Beispiel)
-RF Optuna-HPO: ROC-AUC ~0.879
-Cross-Attention TDI: ROC-AUC ~0.87, PR-AUC ~0.93
-Explainability: VEGFR2-Kinase-Domäne stark gewichtet
-Optimizer: Neue Molekül-Kandidaten mit hoher Aktivität + guter Drug-likeness
-🔮 Erweiterungen
-Dockerfile für reproduzierbare Deployments
-Packaging (pyproject.toml)
-Erweiterung um Federated Learning oder Generative Models (RNN/VAE/Transformer) für Molekül-Design
+## ⚡ Quickstart
 
-## Autor
-- Claudio Vinci
+### 1. Repository klonen
+git clone git@github.com:clavinci94/drug-discovery-assistant.git
+cd drug-discovery-assistant
+
+### 2. Mit Conda starten
+conda env create -f environment.yml
+conda activate drug_discovery
+
+python test_setup.py  # Setup-Test
+export PYTHONPATH="."
+GRADIO_SERVER_PORT=7860 python scripts/app_gradio.py
+👉 Öffne im Browser: [http://127.0.0.1:7860](http://127.0.0.1:7862)
+
+### 3. Mit Docker starten
+docker build -t drug-discovery:cpu .
+PORT=7861 docker compose up
+👉 Öffne im Browser: http://127.0.0.1:7861
+
+## 📊 Ergebnisse
+Random Forest: AUC ≈ 0.86
+Cross-Attention TDI: AUC ≈ 0.87–0.88, PR-AUC > 0.93
+Residue-Importance stimmt mit bekannten VEGFR2-Kinase-Domänen überein
+Optimierte Moleküle zeigen verbesserte Aktivität + Drug-Likeness Scores
+
+## ⚠️ Limitierungen
+Demo basiert auf VEGFR2 (CHEMBL279), Single-Target
+Datensatzgröße begrenzt (≤ 1000 Moleküle)
+Keine experimentelle Validierung (nur Forschungs-Demo, kein Medizinprodukt)
+
+## 📖 Weitere Infos
+Eine ausführliche Projektbeschreibung mit Methodik, Ergebnissen und Limitierungen findest du in PROJECT.md.
+
+## 👤 Autor
+Claudio Vinci  
+[LinkedIn](https://www.linkedin.com/in/claudio-vinci/) • [GitHub](https://github.com/clavinci94@gmail.com) • [Email](mailto:claudiovinci94)
+
+
+## 📝 Lizenz
