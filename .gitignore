@@ -49,4 +49,14 @@
  #!models/*metrics.json
  #
  ## --- Dokumentation / Screenshots (bewusst versionieren) ---
- #!docs/screenshots/**
+ #!docs/screenshots/**# OS / IDE
+.DS_Store
+.idea/
+
+# Generierte Reports/Bilder
+reports/**
+!reports/.gitkeep
+
+# Temp-/Backup-Dateien
+*.save
+*.before-fix
