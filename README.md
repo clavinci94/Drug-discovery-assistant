@@ -20,6 +20,23 @@ Die Applikation kombiniert moderne Methoden wie Molekül-Featurization, Protein 
 
 ---
 
+## 🧪 Eingabe & Modellverständnis
+
+### SMILES-Eingabe
+- Eine Verbindung pro Zeile (SMILES).
+- Möglichst **ohne Salze/Gegenionen** (nur größte organische Komponente).
+- RDKit-kompatibel; exotische Metalle/Komplexe können fehlschlagen.
+- Die App kanonisiert SMILES intern.
+
+**Beispiele**
+```text
+CC(=O)Oc1ccccc1C(=O)O          # Aspirin
+Cn1cnc2n(C)c(=O)n(C)c(=O)c12   # Koffein
+CC(=O)NC1=CC=C(C=C1)O          # Paracetamol
+CC(C)CC1=CC=C(C=C1)C(C)C(=O)O  # Ibuprofen
+```
+
+
 ## 📸 Screenshots
 
 ### Molekülvorhersage
