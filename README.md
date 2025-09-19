@@ -48,13 +48,14 @@ Die Applikation kombiniert moderne Methoden wie Molekül-Featurization, Protein 
 ## ⚡ Quickstart
 
 ### 1) Repository klonen
-```bash
+
 # via SSH
 git clone git@github.com:clavinci94/drug-discovery-assistant.git
 # oder via HTTPS
 # git clone https://github.com/clavinci94/drug-discovery-assistant.git
 cd drug-discovery-assistant
 
+# Lokal mit conda starten
 conda env create -f environment.yml
 conda activate drug_discovery
 
@@ -64,7 +65,9 @@ python test_setup.py  # kurzer Setup-Check
 export PYTHONPATH="."
 export GRADIO_SERVER_NAME="0.0.0.0"
 export GRADIO_SERVER_PORT=7862
+
 python scripts/app_gradio.py
+
 
 👉 Öffne im Browser: [http://127.0.0.1:7860](http://127.0.0.1:7862)
 
@@ -95,8 +98,4 @@ Keine experimentelle Validierung (nur Forschungs-Demo, kein Medizinprodukt)
 Eine ausführliche Projektbeschreibung mit Methodik, Ergebnissen und Limitierungen findest du in PROJECT.md.
 
 ## 👤 Autor
-Claudio Vinci  [LinkedIn](https://www.linkedin.com/in/claudio-vinci/) • [GitHub](https://github.com/clavinci94) • [Email (mailto:claudiovinci94@gmail.com)
-
-
-
-## 📝 Lizenz
+LinkedIn • GitHub • Email
