@@ -1,4 +1,4 @@
-!# Drug Discovery Assistant
+# Drug Discovery Assistant
 
 Ein End-to-End KI-gestütztes System für **Drug Discovery**.  
 Die Applikation kombiniert moderne Methoden wie Molekül-Featurization, Protein Language Models (ESM-2), Cross-Attention** und Explainability, um:  
