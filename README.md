@@ -47,23 +47,38 @@ Die Applikation kombiniert moderne Methoden wie Molekül-Featurization, Protein 
 
 ## ⚡ Quickstart
 
-### 1. Repository klonen
+### 1) Repository klonen
+```bash
+# via SSH
 git clone git@github.com:clavinci94/drug-discovery-assistant.git
+# oder via HTTPS
+# git clone https://github.com/clavinci94/drug-discovery-assistant.git
 cd drug-discovery-assistant
 
-### 2. Mit Conda starten
 conda env create -f environment.yml
 conda activate drug_discovery
 
-python test_setup.py  # Setup-Test
+python test_setup.py  # kurzer Setup-Check
+
+# Laufzeit-ENV
 export PYTHONPATH="."
-GRADIO_SERVER_PORT=7860 python scripts/app_gradio.py
+export GRADIO_SERVER_NAME="0.0.0.0"
+export GRADIO_SERVER_PORT=7862
+python scripts/app_gradio.py
+
 👉 Öffne im Browser: [http://127.0.0.1:7860](http://127.0.0.1:7862)
 
 ### 3. Mit Docker starten
 docker build -t drug-discovery:cpu .
 PORT=7861 docker compose up
+
 👉 Öffne im Browser: http://127.0.0.1:7861
+
+### Nützliche Docker - Commandos
+
+docker compose logs -f app   # Logs der App
+docker compose ps            # Container-Status
+docker compose down          # Stoppen & Aufräumen
 
 ## 📊 Ergebnisse
 Random Forest: AUC ≈ 0.86
