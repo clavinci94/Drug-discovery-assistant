@@ -114,7 +114,8 @@ Residue-Importance stimmt mit bekannten VEGFR2-Kinase-Domänen überein
 Optimierte Moleküle zeigen verbesserte Aktivität + Drug-Likeness Scores
 
 ## ⚠️ Limitierungen
-Demo basiert auf VEGFR2 (CHEMBL279), Single-Target
+Demo basiert auf VEGFR2 (CHEMBL279), 
+Single-Target 
 Datensatzgröße begrenzt (≤ 1000 Moleküle)
 Keine experimentelle Validierung (nur Forschungs-Demo, kein Medizinprodukt)
 
