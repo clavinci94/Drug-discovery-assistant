@@ -99,7 +99,7 @@ python scripts/app_gradio.py
 docker build -t drug-discovery:cpu .
 PORT=7861 docker compose up
 
-👉 Öffne im Browser: http://127.0.0.1:7861
+👉 Öffne im Browser: http://127.0.0.1:7862
 
 ### Nützliche Docker - Commandos
 
