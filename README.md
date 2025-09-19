@@ -123,5 +123,6 @@ Keine experimentelle Validierung (nur Forschungs-Demo, kein Medizinprodukt)
 Eine ausführliche Projektbeschreibung mit Methodik, Ergebnissen und Limitierungen findest du in PROJECT.md.
 
 ## 👤 Autor
+**Claudio Vinci**
 [LinkedIn](https://www.linkedin.com/in/claudio-vinci/) • [GitHub](https://github.com/clavinci94) • [Email](mailto:claudiovinci94@gmail.com)
 
