@@ -1,10 +1,5 @@
 # # Drug Discovery Assistant
 
-[![Build](https://img.shields.io/badge/build-passing-brightgreen)](#)
-[![Python](https://img.shields.io/badge/python-3.9%2B-blue)](#)
-[![Docker](https://img.shields.io/badge/docker-ready-blue)](#)
-[![License](https://img.shields.io/badge/license-MIT-lightgrey)](#)
-
 Ein End-to-End KI-gestütztes System für **Drug Discovery**.  
 Die Applikation kombiniert moderne Methoden wie Molekül-Featurization, Protein Language Models (ESM-2), Cross-Attention** und Explainability, um:  
 - Molekül-Eigenschaften vorherzusagen  

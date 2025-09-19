@@ -21,3 +21,9 @@ reports/*
 
 # OS files
 .DS_Store
+
+# IDE
+.idea/
+# lokale Backups
+scripts/app_gradio.py.before-fix
+scripts/app_gradio.py.save
