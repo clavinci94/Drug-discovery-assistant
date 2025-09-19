@@ -65,13 +65,14 @@ CC(C)CC1=CC=C(C=C1)C(C)C(=O)O  # Ibuprofen
 ## ⚡ Quickstart
 
 ### 1) Repository klonen
-```
+
 ## via SSH
+```
 git clone git@github.com:clavinci94/drug-discovery-assistant.git
 ```
 
-```
 ### oder via HTTPS
+```
 git clone https://github.com/clavinci94/drug-discovery-assistant.git
 
 cd drug-discovery-assistant
