@@ -51,7 +51,7 @@ Die Applikation kombiniert moderne Methoden wie Molekül-Featurization, Protein 
 
 # via SSH
 git clone git@github.com:clavinci94/drug-discovery-assistant.git
-# oder via HTTPS
+### oder via HTTPS
 git clone https://github.com/clavinci94/drug-discovery-assistant.git
 cd drug-discovery-assistant
 
