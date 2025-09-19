@@ -49,19 +49,19 @@ Die Applikation kombiniert moderne Methoden wie Molekül-Featurization, Protein 
 
 ### 1) Repository klonen
 
-# via SSH
+## via SSH
 git clone git@github.com:clavinci94/drug-discovery-assistant.git
 ### oder via HTTPS
 git clone https://github.com/clavinci94/drug-discovery-assistant.git
 cd drug-discovery-assistant
 
-# Lokal mit conda starten
+## Lokal mit conda starten
 conda env create -f environment.yml
 conda activate drug_discovery
 
 python test_setup.py  # kurzer Setup-Check
 
-# Laufzeit-ENV
+## Laufzeit-ENV
 export PYTHONPATH="."
 export GRADIO_SERVER_NAME="0.0.0.0"
 export GRADIO_SERVER_PORT=7862
